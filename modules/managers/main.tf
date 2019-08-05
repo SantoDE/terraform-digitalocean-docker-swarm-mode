@@ -1,7 +1,7 @@
 data "template_file" "provision_first_manager" {
   template = "${file("${path.module}/scripts/provision-first-manager.sh")}"
 
-  vars {
+  vars = {
     docker_cmd   = "${var.docker_cmd}"
     availability = "${var.availability}"
   }
@@ -10,26 +10,29 @@ data "template_file" "provision_first_manager" {
 data "template_file" "provision_manager" {
   template = "${file("${path.module}/scripts/provision-manager.sh")}"
 
-  vars {
+  vars = {
     docker_cmd   = "${var.docker_cmd}"
     availability = "${var.availability}"
   }
 }
 
 resource "digitalocean_droplet" "manager" {
-  ssh_keys           = ["${var.ssh_keys}"]
+  ssh_keys           = flatten([
+    var.ssh_keys,
+  ])
   image              = "${var.image}"
   region             = "${var.region}"
   size               = "${var.size}"
   private_networking = true
   backups            = "${var.backups}"
   ipv6               = false
-  tags               = ["${var.tags}"]
+  tags               = "${var.tags}"
   user_data          = "${var.user_data}"
   count              = "${var.total_instances}"
   name               = "${format("%s-%02d.%s.%s", var.name, count.index + 1, var.region, var.domain)}"
 
   connection {
+    host = "${self.ipv4_address}"
     type        = "ssh"
     user        = "${var.provision_user}"
     private_key = "${file("${var.provision_ssh_key}")}"
@@ -63,7 +66,7 @@ resource "digitalocean_droplet" "manager" {
 resource "null_resource" "manager_api_access" {
   count = "${var.remote_api_key == "" || var.remote_api_certificate == "" || var.remote_api_ca == "" ? 0 : var.total_instances}"
 
-  triggers {
+  triggers = {
     cluster_instance_ids = "${join(",", digitalocean_droplet.manager.*.id)}"
     certificate          = "${md5(file("${var.remote_api_certificate}"))}"
   }
@@ -125,7 +128,7 @@ resource "null_resource" "bootstrap" {
   count      = "${var.total_instances}"
   depends_on = ["null_resource.manager_api_access"]
 
-  triggers {
+  triggers = {
     cluster_instance_ids = "${join(",", digitalocean_droplet.manager.*.id)}"
   }
 

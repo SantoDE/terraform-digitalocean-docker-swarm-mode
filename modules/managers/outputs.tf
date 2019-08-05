@@ -4,7 +4,7 @@ output "ipv4_addresses" {
 }
 
 output "ipv4_addresses_private" {
-  value       = ["${digitalocean_droplet.manager.*.ipv4_address_private}"]
+  value       = flatten([digitalocean_droplet.manager.*.ipv4_address_private])
   description = "The manager nodes private ipv4 adresses"
 }
 
@@ -18,4 +18,9 @@ output "worker_token" {
   value       = "${lookup(data.external.swarm_tokens.result, "worker", "")}"
   description = "The Docker Swarm worker join token"
   sensitive   = true
+}
+
+output "manager_droplet_ids" {
+  value = ["${digitalocean_droplet.manager.*.id}"]
+  description = "The IDs of the Manager Droplets"
 }

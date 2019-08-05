@@ -1,7 +1,7 @@
 data "template_file" "join_cluster_as_worker" {
   template = "${file("${path.module}/scripts/join.sh")}"
 
-  vars {
+  vars = {
     docker_cmd         = "${var.docker_cmd}"
     availability       = "${var.availability}"
     manager_private_ip = "${var.manager_private_ip}"
@@ -9,7 +9,9 @@ data "template_file" "join_cluster_as_worker" {
 }
 
 resource "digitalocean_droplet" "node" {
-  ssh_keys           = ["${var.ssh_keys}"]
+  ssh_keys           = flatten([
+    var.ssh_keys,
+  ])
   image              = "${var.image}"
   region             = "${var.region}"
   size               = "${var.size}"
@@ -17,11 +19,12 @@ resource "digitalocean_droplet" "node" {
   backups            = "${var.backups}"
   ipv6               = false
   user_data          = "${var.user_data}"
-  tags               = ["${var.tags}"]
+  tags               = "${var.tags}"
   count              = "${var.total_instances}"
   name               = "${format("%s-%02d.%s.%s", var.name, count.index + 1, var.region, var.domain)}"
 
   connection {
+    host        = "${element(digitalocean_droplet.node.*.ipv4_address, count.index)}"
     type        = "ssh"
     user        = "${var.provision_user}"
     private_key = "${file("${var.provision_ssh_key}")}"
